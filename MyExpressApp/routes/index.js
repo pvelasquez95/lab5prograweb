@@ -4,91 +4,76 @@ app.listen(3000);
 console.log('Log listening on port 3000...')
 app.use(express.json())
 
-var lastID = 8;
-var juegos = [
-  { id: 1, name: "Dota 2", platform: ["PC"], rate: ["7"] },
-  { id: 2, name: "Mario Odyssey", platform: ["NS"], rate: ["9.5"] },
-  { id: 3, name: "Zelda Breath of the Wild", platform: ["NS"], rate: ["9"] },
-  { id: 4, name: "Sea of Thieves", platform: ["XBOX"], rate: ["5"] },
-  { id: 5, name: "State of Decay 2", platform: ["XBOX"], rate: ["4"] },
-  { id: 6, name: "Overwatch", platform: ["PC"], rate: ["7.5"] },
-  { id: 7, name: "Persona 5", platform: ["PS4"], rate: ["8.5"] },
-  { id: 8, name: "Digimon Cyber Sleuth", platform: ["PS4"], rate: ["8"] }
-]
 
-app.get('/api/juegos', (req, res) => {
-  res.status(200).send(juegos)
+var mongo = require('mongodb').MongoClient;
+var objectId = require('mongodb').ObjectID;
+var assert = require('assert');
+var url = 'mongodb://localhost:27017/juegos';
+var db;
+
+mongo.connect(url, function(err, client) {
+  if(!err) {
+    console.log("We are connected");
+    db = client.db('juegos');
+  }
 });
 
-app.get('/api/juegos/:id', (req, res) => {
-  const juego = juegos.find(x => x.id === parseInt(req.params.id));
-  if (!juego) {
-    res.status(404).send('Game Not Found')
-    return;
-  }
-  res.status(200).send(juego)
+
+
+app.get('/api/juegos/', function(req, res, next) {
+  db.collection('juegos').find().toArray((err, result) => {
+    if (err) return console.log(err)
+    res.send({juegos: result})
+  })
 });
 
-app.post('/api/juegos', (req, res) => {
-  if (!req.body.name) {
-    res.status(400).send('Name Required')
-    return;
-  }
-  if (!req.body.platform) {
-    res.status(400).send('Platform Required')
-    return;
-  }
-  if (!req.body.rate) {
-    res.status(400).send('Rate Required')
-    return;
-  }
+app.get('/api/juegos/:id', function(req, res, next) {
+  db.collection('juegos').find().toArray((err, result) => {
+    if (err) return console.log(err)
+    res.send({juegos: result})
+  })
+});
 
-  lastID += 1;
+app.post('/api/juegos/', function(req, res, next) {
   const juego = {
-    id: lastID,
-    name: req.body.name,
-    platform: req.body.platform,
-    rate: req.body.rate
-  };
-  juegos.push(juego);
-  res.status(201).send(juegos);
+    name:req.body.name
+    ,platform:req.body.platform
+    ,memo:req.body.memo
+    ,rate:req.body.rate
+    ,photo:req.body.photo
+  }
+  db.collection('juegos').insertOne(juego, function(err, result){
+    assert.equal(null, err);
+    if (err) return console.log(err)
+    console.log("Item inserted");
+    res.status(201).send(result);
+  });
 });
 
-app.put('api/juegos/:id', (req, res) => {
-  const juego = juegos.find(x => x.id === parseInt(req.params.id));
-  if (!juego) {
-    res.status(404).send('Game Not Found')
-    return;
+app.put('/api/juegos/:id', function(req, res, next) {
+  var id = req.params.id;
+  const item = {
+    name:req.body.name
+    ,platform:req.body.platform
+    ,memo:req.body.memo
+    ,rate:req.body.rate
+    ,photo:req.body.photo
   }
-  if (!req.body.name) {
-    res.status(400).send('Name Required')
-    return;
-  }
-  if (!req.body.platform) {
-    res.status(400).send('Platform Required')
-    return;
-  }
-  if (!req.body.rate) {
-    res.status(400).send('Rate Required')
-    return;
-  }
-  juego.name = req.body.name;
-  juego.platform = req.body.platform;
-  juego.rate = req.body.rate;
-  res.status(204).send(juego);
+
+  db.collection('juegos').updateOne({"_id": objectId(id)}, {$set: item}, function(err, result) {
+    assert.equal(null, err);
+    console.log('Item updated');
+    res.status(204).send(item);
+  });
+  
 });
 
-app.delete('api/juegos/:id', (req, res) => {
-  const juego = juegos.find(x => x.id === parseInt(req.params.id));
-  if (!juego) {
-    res.status(404).send('Game Not Found')
-    return;
-  }
-
-  const indice = juegos.indexOf(juego);
-  juegos.splice(indice,1);
-
-  res.status(204).send(juegos)
+app.delete('/api/juegos/:id', function(req, res, next) {
+  var id = req.params.id;
+  db.collection('juegos').deleteOne({"_id": objectId(id)}, function(err, result) {
+    assert.equal(null, err);
+    if (err) return console.log(err)
+    console.log('Item deleted');
+    res.status(204).send(result);
+  });
 });
-
-
